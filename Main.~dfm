@@ -1,10 +1,10 @@
 object MainForm: TMainForm
-  Left = 530
-  Top = 40
+  Left = 268
+  Top = 66
   BorderStyle = bsSingle
   Caption = 'Borisov-Lambrecht model of human capital distribution emulator'
   ClientHeight = 646
-  ClientWidth = 635
+  ClientWidth = 1043
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,11 +18,19 @@ object MainForm: TMainForm
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel
-    Left = 520
-    Top = 117
+    Left = 872
+    Top = 29
     Width = 21
     Height = 13
     Caption = 'CES'
+    Visible = False
+  end
+  object Label2: TLabel
+    Left = 640
+    Top = 125
+    Width = 87
+    Height = 13
+    Caption = 'How to pass exam'
     Visible = False
   end
   object AEdit: TLabeledEdit
@@ -287,7 +295,7 @@ object MainForm: TMainForm
           Caption = 'Pivotal Dynasty'
           object ihChart: TChart
             Left = 9
-            Top = 0
+            Top = 8
             Width = 448
             Height = 241
             BackWall.Brush.Color = clWhite
@@ -1199,8 +1207,8 @@ object MainForm: TMainForm
     OnClick = StopBtnClick
   end
   object REdit: TLabeledEdit
-    Left = 568
-    Top = 112
+    Left = 920
+    Top = 24
     Width = 50
     Height = 21
     EditLabel.Width = 19
@@ -1289,15 +1297,71 @@ object MainForm: TMainForm
     OnClick = VaryOptionsClick
   end
   object Corruption: TCheckBox
-    Left = 504
-    Top = 320
+    Left = 712
+    Top = 152
     Width = 121
     Height = 17
     Caption = 'Corruption'
     Checked = True
     State = cbChecked
     TabOrder = 15
-    OnClick = CorruptionClick
+  end
+  object ComboBox1: TComboBox
+    Left = 712
+    Top = 56
+    Width = 145
+    Height = 21
+    ItemHeight = 13
+    ItemIndex = 0
+    TabOrder = 16
+    Text = 'No Taxation'
+    Items.Strings = (
+      'No Taxation'
+      'Subsidize if study and collect after'
+      'Collect equal and subsidize children'
+      'Collect inequal and subsidize children'
+      #1058#1072#1093#1072'tion + Expenditure')
+  end
+  object ProductivityRadio: TComboBox
+    Left = 712
+    Top = 24
+    Width = 145
+    Height = 21
+    ItemHeight = 13
+    ItemIndex = 0
+    TabOrder = 17
+    Text = 'Cobb-Duglas'
+    Items.Strings = (
+      'Cobb-Duglas'
+      'CES')
+  end
+  object ComboBox2: TComboBox
+    Left = 712
+    Top = 88
+    Width = 145
+    Height = 21
+    ItemHeight = 13
+    ItemIndex = 0
+    TabOrder = 18
+    Text = 'Linear function'
+    Items.Strings = (
+      'Linear function'
+      'Power function'
+      'Manual')
+  end
+  object ComboBox3: TComboBox
+    Left = 792
+    Top = 120
+    Width = 145
+    Height = 21
+    ItemHeight = 13
+    TabOrder = 19
+    Text = 'Linear function'
+    Items.Strings = (
+      '100%'
+      'P(pass)=hc+bribe'
+      'P(pass)=hc or 1 if bribe'
+      'P(pass)=1 if clever or hc+bribe if not')
   end
   object SaveDialog1: TSaveDialog
     DefaultExt = '.txt'
@@ -1334,11 +1398,11 @@ object MainForm: TMainForm
         Caption = 'Show previous step'
         object PreviousOn: TMenuItem
           Caption = 'On'
+          Checked = True
           OnClick = PreviousOnClick
         end
         object Off2: TMenuItem
           Caption = 'Off'
-          Checked = True
           OnClick = Off2Click
         end
       end
