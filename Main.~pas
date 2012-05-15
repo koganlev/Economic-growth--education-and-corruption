@@ -9,7 +9,7 @@ uses
 
 const
 SizeOfMas=100000;
-BribeEffect=2;
+BribeEffect=3;
 type
   TMainForm = class(TForm)
     AEdit: TLabeledEdit;

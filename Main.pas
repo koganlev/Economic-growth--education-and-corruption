@@ -203,11 +203,12 @@ type
 
   TGeneration = record
     H,L,Y,T,B:double; //Human Capital, Common Labour, GDP, Taxes
-    pivotal,bribesize,wH,wL:double; //Pivotal Dynasty, Skilled wage, Unskilled wage
-    ht,w,c,e,tax,bribe,isclever,isprof:TMas; //Human Capital, Wages, Consumption, Expenditures, Taxes, bribe
+    pivotal,bribesize,bribetax,bribetaxmax,wH,wL:double; //Pivotal Dynasty, Skilled wage, Unskilled wage
+    ht,mark,w,c,e,bribe,tax,isclever,isprof:TMas; //Human Capital, Wages, Consumption, Expenditures, Taxes, bribe
     averageprofhc:double;
     proftotal:integer;
     Parent,Child : PGeneration;
+    BiE:boolean;
     end;
 
   Tmodel = record
@@ -261,7 +262,6 @@ var
   Function  CountWl(var Generation:PGeneration):double;
   Procedure DistributeWages(var Generation:PGeneration);
   Procedure CountT(var Generation:PGeneration);
-  Procedure FindTaxationExpenditureIh(var stop:boolean);
   Function  FindIh(var Generation:PGeneration; a,b:integer):double;
   Function ExpectedSalary(i:integer; bribe:double; Generation:PGeneration):double;
 
@@ -269,13 +269,12 @@ var
 
   Function Gamma:double;
   Function hi(i:integer; var Generation:PGeneration):double;
-  Function hi_tax(expenditure:double; i:integer; var Generation:PGeneration):double;
   Function wi(i:integer; var Generation:PGeneration):double;
   Function Psi(x:double):double;
   function hexam(i:integer; var Generation:PGeneration):double;
   function hline(i:integer; var Generation:PGeneration):double;
+  function mline(i:integer; var Generation:PGeneration):double;
   Function hbig(i:integer; var Generation:PGeneration):double;
-  Function hbigtax(ih:integer; var Generation:PGeneration):double;
 
   Procedure Experiment(ih,a,k:double;n,steps:integer;single_exp:boolean);
   Procedure Run;
@@ -379,7 +378,7 @@ end;
     begin
       CleverHC:=NewStrToDouble(MainForm.CleverHCEdit.Text,result);
       StupidHC:=NewStrToDouble(MainForm.StupidHCEdit.Text,result);
-    end;  
+    end;
     Run_a:=NewStrToDouble(MainForm.AEdit.Text,result);
     if (MainForm.TaxationEqual.Checked or MainForm.TaxationInequal.Checked) or MainForm.TaxationExpenditure.Checked then Run_tax:=NewStrToDouble(MainForm.TaxRate.Text,result);
     Run_CLTax:=Run_Tax;
@@ -429,6 +428,7 @@ end;
   clevercount,i:integer;
   Begin
     if not error and MainForm.ExamOn.Checked then PassExam(Model.State);
+
     if not error then CountLH(Model.State);
     if not error then CountWages(Model.State);
     if not error then if (MainForm.TaxationEqual.checked or Mainform.TaxationInEqual.Checked) or Mainform.TaxationExpenditure.Checked then CountT(Model.State);
@@ -443,7 +443,6 @@ end;
     if not error then NextGeneration(Model.State);
 
     stop:=false;
-    if not error and MainForm.TaxationExpenditure.checked then FindTaxationExpenditureIh(stop);
     if stop then begin error:=true;  if Mainform.PageControl1.ActivePageIndex=0 then Showmessage('Can''t find pivolal dinasty'); end;
 
 
@@ -569,27 +568,27 @@ end;
      begin
       if not error then begin
        if MainForm.ExamOn.Checked then
-        Generation.ht[i]:=hexam(i,Generation)
+         Generation.ht[i]:=hexam(i,Generation)
         else
-        if i<=floor(Generation.Pivotal*Model.n+epsilon) then
-         Generation.ht[i]:=0
+         if i<=floor(Generation.Pivotal*Model.n+epsilon) then
+           Generation.ht[i]:=0
          else
-          if (MainForm.TaxationEqual.checked or Mainform.TaxationInEqual.Checked) or Mainform.TaxationExpenditure.Checked then
-           Generation.ht[i]:=hi_tax(Generation.Parent.e[i]+Generation.Parent.T/(1-Generation.Pivotal)/Model.n,i,Generation)
-          else
-           Generation.ht[i]:=hline(i,Generation);
-
-        if not MainForm.ExamOn.Checked then
-        if i>1 then if generation.ht[i]<generation.ht[i-1] then
-         begin
-          if Mainform.PageControl1.ActivePageIndex=1 then
-           error:=true else
-            if (MessageDlg('Wrong Human Capital Distribution, dynasty = '+inttostr(i)+'. Stop experiment?', mtConfirmation, mbYesNoCancel, 0) = mrYes ) then
-              error:=true;
-         end;
+           Generation.ht[i]:=hline(i,Generation)
       end;
      end;
   End;
+
+  Procedure CountMarks(var Generation:PGeneration);
+  var i:integer;
+  Begin
+    For i:=1 to Model.n do
+     begin
+      if not error then begin
+           Generation.mark[i]:=mline(i,Generation)
+      end;
+     end;
+  End;
+
 
   Procedure CountLH(var Generation:PGeneration);
   var i:integer;
@@ -680,7 +679,6 @@ end;
   Case PF of
   0: Result:=Model.a*Power(Generation.L/Generation.H,1-Model.a);
   1: Result:=Model.a*Power(Generation.H,Model.r-1)*Power(Generation.Y,(1-Model.r));
-//  1: Result:=CESDerivative(Model.a,Model.r,Generation.H,Generation.L,true);
   else showmessage('PF error');
   end;
   if not error then  if result=0 then begin error:=true; showmessage('Wh=0'); end;
@@ -693,8 +691,6 @@ end;
   Case PF of
   0: Result:=(1-model.a)*Power(Generation.H/Generation.L,Model.a);
   1: Result:=(1-Model.a)*Power(Generation.L,Model.r-1)*Power(Generation.Y,(1-Model.r));
-//  1: Result:=CESDerivative(Model.a,Model.r,Generation.H,Generation.L,false);
-
   else showmessage('PF error');
   end;
   if not error then  if result=0 then begin error:=true; showmessage('Wl=0'); end;
@@ -738,36 +734,6 @@ end;
   Generation.T:=tmp;
   End;
 
-  Procedure FindTaxationExpenditureIh(var stop:boolean);
-  var oldpivotal,temppivotal:double;fluct:boolean;
-  Begin
-    Model.State.Pivotal:=expectedpivotal;
-      oldpivotal:=expectedpivotal;
-      temppivotal:=expectedpivotal;
-      fluct:=false;
-      repeat
-      begin
-        if (not fluct and (abs(expectedpivotal-oldpivotal)<=1/Model.n+epsilon)) and ((abs(expectedpivotal-oldpivotal)>0) and (MaxMin(Model.State.Pivotal,OldPivotal,sign(Round(Model.n*(Expectedpivotal-OldPivotal)))) = OldPivotal)) then
-        stop:=true else
-        if not fluct then
-        temppivotal:=RoundTo((MaxMin(Model.State.Pivotal,OldPivotal,sign(Round(Model.n*(Expectedpivotal-OldPivotal))))+expectedpivotal)/2,Round(-log10(Model.n)))
-        else
-        temppivotal:=Model.State.Pivotal;
-
-        if MaxMin(Model.State.Pivotal,OldPivotal,sign(Round(Model.n*(Expectedpivotal-OldPivotal)))) = Model.State.Pivotal then oldpivotal:=expectedpivotal;
-        expectedpivotal:=temppivotal;
-
-        Model.State.Pivotal:=(FindIh(Model.State,0,Model.n)-1)/Model.n;
-
-
-        if oldpivotal=Model.State.Pivotal then stop:=true;
-        if not fluct and (abs(expectedpivotal-Model.State.Pivotal)<=1/Model.n+epsilon) then
-        fluct:=true else fluct:=false;
-
-      end
-      until (expectedpivotal=model.State.pivotal) or stop;
-  End;
-
   Function FindIh(var Generation:PGeneration; a,b:integer):double;
   var i:integer;
   var left,right:double;
@@ -775,30 +741,15 @@ end;
     if a<b then
     begin
       i:=round((a+b)/2);
-     if (Mainform.NoTaxation.Checked or Mainform.TaxationAfter.Checked) then
-     begin
+
       Case PF of
       0: left:=((1-Model.a)/Model.a)*HBig(i,Generation)/i;
       1: left:=((1-Model.a)/Model.a)*Power(HBig(i,Generation)/i,(1-Model.r));
       else begin left:=0; showmessage('PF error'); end;
       end;
       right:=hline(i,Generation)/(1+Model.k);
-     end else
-     if (Mainform.TaxationEqual.Checked or Mainform.TaxationInEqual.Checked) then
-     begin
-       left:=((1-Model.a)/Model.a)*(1-Run_CLTax)/(1-Run_Tax)*HBigTax(i,generation)/i;
-       right:=Power((Generation.Parent.ht[i]+1),1-Model.k);
-     end else
-     if (Mainform.TaxationExpenditure.Checked) then
-     begin
-       left:=((1-Model.a)/Model.a)*HBig(i,generation)/i;
-       right:=hline(i,Generation)/(1+Model.k)*(Generation.Parent.w[i]+Generation.Parent.T/Model.n/(1-ExpectedPivotal))/Generation.Parent.w[i];
-     end else
-     begin
-     error:=true;
-     ShowMessage('taxmodeerror');
-     left:=0; right:=0;
-     end;
+
+//      left:=PotentialGDP
 
       if left<right then
         Result:=FindIh(Generation,a,i-1) else
@@ -823,10 +774,6 @@ end;
   var i:integer;
   e1,e2,w1,w2:double;
   Begin
-
-   if MainForm.TaxationAfter.Checked then
-      Run_Tax:=Run_Lambda*Generation.H/Generation.Y;
-
     For i:=1 to Model.n do
     Begin
       if Mainform.ExamOn.Checked then
@@ -886,11 +833,6 @@ end;
     Result:=Power(Generation.Parent.e[i]*(1+Run_Lambda),Model.k)*Power((Generation.Parent.ht[i]+1),1-Model.k);
   End;
 
-  Function hi_tax(expenditure:double; i:integer; var Generation:PGeneration):double;
-  Begin
-    Result:=Power(expenditure,Model.k)*Power((Generation.Parent.ht[i]+1),1-Model.k);
-  End;
-
   Function wi(i:integer; var Generation:PGeneration):double;
   var
   prof:boolean;
@@ -907,21 +849,9 @@ end;
      end;
 
    if not prof then
-      result:=Generation.wL*(1-Run_CLTax)
+    result:=Generation.wL*(1-Run_CLTax)
    else
-   begin
     result:=Generation.wH*hc*(1-Run_Tax);
-
-    if (i<>1) and not mainform.ExamOn.Checked then
-     if Generation.w[i-i]=Generation.wL*(1-Run_CLTax) then
-      if Sqr(Round(Generation.Pivotal*model.n-(i-1)))>0 then
-       begin
-       if Mainform.PageControl1.ActivePageIndex=1 then
-         error:=true else
-        if (MessageDlg('ih='+floattostr(Generation.Pivotal)+' and ihtest ='+floattostr((i-1)/Model.n)+'. Stop experiment?', mtConfirmation, mbYesNoCancel, 0) = mrYes ) then
-        error:=true;
-       end;
-   end;
   End;
 
   Function Psi(x:double):double;
@@ -962,12 +892,16 @@ end;
   Function hline(i:integer; var Generation:PGeneration):double;
   Begin
    if i<=floor(Generation.Parent.Pivotal*Model.n+epsilon) then
-     if MainForm.TaxationExpenditure.Checked then Result:=Gamma*Power(Generation.Parent.w[i]+Generation.Parent.T/Model.n/(1-ExpectedPivotal),Model.k)
-     else Result:=Gamma*Power(Generation.Parent.wL,Model.k)
+     Result:=Gamma*Power(Generation.Parent.wL,Model.k)
    else
-     if MainForm.TaxationExpenditure.Checked then Result:=Gamma*Power((Generation.Parent.w[i]+Generation.Parent.T/Model.n/(1-ExpectedPivotal))*(1+Run_Lambda),Model.k)*Psi(Generation.Parent.ht[i])
-     else Result:=Gamma*Power(Generation.Parent.wH*(1+Run_Lambda),Model.k)*Psi(Generation.Parent.ht[i]);
+     Result:=Gamma*Power(Generation.Parent.wH*(1+Run_Lambda),Model.k)*Psi(Generation.Parent.ht[i]);
   End;
+
+  Function mline(i:integer; var Generation:PGeneration):double;
+  Begin
+     Result:=Gamma*Power(Generation.Parent.bribesize-Generation.parent.wL*Model.bribetowl,Model.k)/Model.bribetowl*Power(1+Generation.Parent.ht[i],1-model.k);
+  End;
+
 
   Function hbig(i:integer; var Generation:PGeneration):double;
   var tmp:double;
@@ -975,18 +909,6 @@ end;
     tmp:=0;
     For i:=floor(Generation.Parent.Pivotal*Model.n+epsilon)+1 to Model.n do
       tmp:=tmp+hline(i,Generation);
-    Result:= tmp;
-  End;
-
-  Function HbigTax(ih:integer; var Generation:PGeneration):double;
-  var tmp:double;
-  i:integer;
-    Begin
-    tmp:=0;
-    For i:=ih to Model.n do
-    begin
-     tmp:=tmp+Power((Generation.Parent.ht[i]+1),1-Model.k);
-    end;
     Result:= tmp;
   End;
 
