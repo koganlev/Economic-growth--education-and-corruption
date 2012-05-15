@@ -1,10 +1,10 @@
 object MainForm: TMainForm
-  Left = 530
-  Top = 40
+  Left = 272
+  Top = 124
   BorderStyle = bsSingle
   Caption = 'Borisov-Lambrecht model of human capital distribution emulator'
   ClientHeight = 646
-  ClientWidth = 635
+  ClientWidth = 886
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -1298,6 +1298,35 @@ object MainForm: TMainForm
     State = cbChecked
     TabOrder = 15
     OnClick = CorruptionClick
+  end
+  object ModelType: TComboBox
+    Left = 688
+    Top = 24
+    Width = 177
+    Height = 21
+    ItemHeight = 13
+    ItemIndex = 1
+    TabOrder = 16
+    Text = #1052#1086#1103' '#1091#1087#1088#1086#1097#1077#1085#1085#1072#1103' '#1084#1086#1076#1077#1083#1100' '#1089' '#1082#1086#1088#1088#1091#1087#1094#1080#1077#1081
+    OnChange = ModelTypeChange
+    Items.Strings = (
+      #1052#1086#1076#1077#1083#1100' '#1041#1086#1088#1080#1089#1086#1074#1072' (1)'
+      #1052#1086#1103' '#1091#1087#1088#1086#1097#1077#1085#1085#1072#1103' '#1084#1086#1076#1077#1083#1100' '#1089' '#1082#1086#1088#1088#1091#1087#1094#1080#1077#1081
+      #1052#1086#1103' '#1084#1086#1076#1080#1092#1080#1082#1072#1094#1080#1103' '#1084#1086#1076#1077#1083#1080' 1.'
+      #1052#1086#1103' '#1084#1086#1076#1080#1092#1080#1082#1072#1094#1080#1103' '#1084#1086#1076#1077#1083#1080' 1 '#1089' '#1082#1086#1088#1088#1091#1087#1094#1080#1077#1081)
+  end
+  object InitialHC: TRadioGroup
+    Left = 688
+    Top = 56
+    Width = 177
+    Height = 89
+    Caption = #1053#1072#1095#1072#1083#1100#1085#1086#1077' '#1088#1072#1089#1087#1088#1077#1076#1077#1083#1077#1085#1080#1077
+    ItemIndex = 2
+    Items.Strings = (
+      'Linear Distribution'
+      'Power Distribution'
+      'Manual')
+    TabOrder = 17
   end
   object SaveDialog1: TSaveDialog
     DefaultExt = '.txt'

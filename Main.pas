@@ -155,6 +155,8 @@ type
     Series16: TLineSeries;
     StupidHCEdit: TLabeledEdit;
     CleverHCEdit: TLabeledEdit;
+    ModelType: TComboBox;
+    InitialHC: TRadioGroup;
     procedure GoBtnClick(Sender: TObject);
     procedure CloseBtnClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -190,6 +192,7 @@ type
     procedure ExamOnClick(Sender: TObject);
     procedure Manual1Click(Sender: TObject);
     procedure CorruptionClick(Sender: TObject);
+    procedure ModelTypeChange(Sender: TObject);
 
   private
     { Private declarations }
@@ -207,7 +210,7 @@ type
     ht,mark,w,c,e,bribe,tax,isclever,isprof:TMas; //Human Capital, Wages, Consumption, Expenditures, Taxes, bribe
     averageprofhc:double;
     proftotal:integer;
-    Parent,Child : PGeneration;
+    Parent,Child,Test : PGeneration;
     BiE:boolean;
     end;
 
@@ -262,7 +265,7 @@ var
   Function  CountWl(var Generation:PGeneration):double;
   Procedure DistributeWages(var Generation:PGeneration);
   Procedure CountT(var Generation:PGeneration);
-  Function  FindIh(var Generation:PGeneration; a,b:integer):double;
+  Function  FindExpectedPivotal(var Generation:PGeneration; a,b:integer):double;
   Function ExpectedSalary(i:integer; bribe:double; Generation:PGeneration):double;
 
   Procedure CountExpensesConsumption(Var Generation:PGeneration);
@@ -358,12 +361,30 @@ end;
     Generation.Parent.Child:=Generation;
   End;
 
+  Procedure TestGeneration(var Generation:PGeneration);
+  var
+  i:integer;
+  Begin
+    new(Generation.Test);
+    Generation.Test.Test:=Generation;
+    Generation.Test.Parent:=Generation.Parent;
+    Generation:=Generation.Test;
+    Generation.Test.Test:=Generation;
+    for i:=1 to model.n do
+    Generation.ht[i]:=Generation.Parent.ht[i];
+    for i:=1 to model.n do
+    Generation.mark[i]:=Generation.Parent.mark[i];
+    Generation.pivotal:=Generation.Parent.pivotal;
+    Generation.BiE:=Generation.Parent.BiE;
+  End;
+
   Procedure DisposeModel(var Generation:PGeneration);
   Begin
     if (Generation.Child<>nil) then
       begin
      	  DisposeModel(Generation.Child);
     	  Generation.Child :=nil;
+        Generation.Test :=nil;
       end;
     Dispose(Generation);
   End;
@@ -374,7 +395,7 @@ end;
     run_tax:=0;
     Run_lambda:=0;
 
-    if MainForm.ExamOn.Checked then
+    if (MainForm.ModelType.ItemIndex=1) then
     begin
       CleverHC:=NewStrToDouble(MainForm.CleverHCEdit.Text,result);
       StupidHC:=NewStrToDouble(MainForm.StupidHCEdit.Text,result);
@@ -424,44 +445,40 @@ end;
 
 
   Procedure SubStep;
-  var stop:boolean;
+  var
   clevercount,i:integer;
   Begin
-    if not error and MainForm.ExamOn.Checked then PassExam(Model.State);
+    if not error and (MainForm.ModelType.ItemIndex=1) then PassExam(Model.State);
 
     if not error then CountLH(Model.State);
     if not error then CountWages(Model.State);
     if not error then if (MainForm.TaxationEqual.checked or Mainform.TaxationInEqual.Checked) or Mainform.TaxationExpenditure.Checked then CountT(Model.State);
 
-    if not error and MainForm.ExamOn.Checked then QuickSort(1,Model.n,Model.State.isclever,Model.State.isprof,Model.State.w,Model.State.ht,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
+    if not error and (MainForm.ModelType.ItemIndex=1) then QuickSort(1,Model.n,Model.State.isclever,Model.State.isprof,Model.State.w,Model.State.ht,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
     clevercount:=Model.n;
     for i:=1 to Model.n do
     if Model.State.isclever[i]=0 then clevercount:=i;
-    if not error and MainForm.ExamOn.Checked then QuickSort(1,clevercount,Model.State.isprof,Model.State.isclever,Model.State.w,Model.State.ht,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
-    if not error and MainForm.ExamOn.Checked then QuickSort(clevercount+1,Model.n,Model.State.isprof,Model.State.isclever,Model.State.w,Model.State.ht,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
+    if not error and (MainForm.ModelType.ItemIndex=1) then QuickSort(1,clevercount,Model.State.isprof,Model.State.isclever,Model.State.w,Model.State.ht,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
+    if not error and (MainForm.ModelType.ItemIndex=1) then QuickSort(clevercount+1,Model.n,Model.State.isprof,Model.State.isclever,Model.State.w,Model.State.ht,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
 
     if not error then NextGeneration(Model.State);
-
-    stop:=false;
-    if stop then begin error:=true;  if Mainform.PageControl1.ActivePageIndex=0 then Showmessage('Can''t find pivolal dinasty'); end;
-
-
     if not error then Model.State.bribesize:=Model.bribetowl*min(Model.State.Parent.wL,Model.State.Parent.wH*Model.State.Parent.averageprofhc);
 
-    if not error and not MainForm.TaxationExpenditure.checked then
-        if not MainForm.ExamOn.Checked then
-        Model.State.Pivotal:=(FindIh(Model.State,0,Model.n)-1)/Model.n
+    if not error  then
+        if not (MainForm.ModelType.ItemIndex=1) then
+        Model.State.Pivotal:=(FindExpectedPivotal(Model.State,0,Model.n)-1)/Model.n
         else
         Model.State.Pivotal:=(Model.n-Model.State.Parent.ProfTotal)/Model.n;
 
-    if not error then if PF=0 then if MainForm.NoTaxation.Checked or MainForm.TaxationExpenditure.checked then if Model.State.Pivotal<(1-Model.a) then
+{    if not error then if PF=0 then if MainForm.NoTaxation.Checked or MainForm.TaxationExpenditure.checked then if Model.State.Pivotal<(1-Model.a) then
           if Mainform.PageControl1.ActivePageIndex=1 then
            error:=true else
-            if not MainForm.ExamOn.Checked then
+            if not (MainForm.ModelType.ItemIndex=1) then
             if (MessageDlg('Pivotal Dynasty = '+Floattostr(Model.State.Pivotal)+' < '+Floattostr(1-Model.a)+'. Stop experiment?', mtConfirmation, mbYesNoCancel, 0) = mrYes ) then
               error:=true;
+ }
     if not error then Model.State:=Model.State.Parent;
-    if not error then if not (MainForm.TaxationEqual.checked or Mainform.TaxationInEqual.Checked) then CountExpensesConsumption(Model.State);
+    if not error then  CountExpensesConsumption(Model.State);
   End;
 
   Procedure FirstStep;
@@ -482,7 +499,7 @@ end;
    n:double;
    alfa,beta,gamma, x0:double;
    Begin
-    if MainForm.Manual1.Checked then
+    if (MainForm.InitialHC.ItemIndex =2) then
     begin
      Model.Start.pivotal:=0.5;
      for i:=1 to (Model.n div 2) do
@@ -499,7 +516,7 @@ end;
     end;
 
 
-    if MainForm.PowerFunction1.Checked then
+    if (MainForm.InitialHC.ItemIndex =1) then
     begin
 
       case PF of
@@ -525,7 +542,7 @@ end;
        Model.Start.ht[i]:=Model.Start.Pivotal*Power((i-1)/Model.n,n);
     end;
 
-    if MainForm.HDistrType.Checked then
+    if (MainForm.InitialHC.ItemIndex=0) then
      begin
       case PF of
       0:begin beta:=(1-Model.a)/Model.a*(1-Run_CLTax)/(1-Run_Tax);
@@ -567,7 +584,7 @@ end;
     For i:=1 to Model.n do
      begin
       if not error then begin
-       if MainForm.ExamOn.Checked then
+       if (MainForm.ModelType.ItemIndex=1) then
          Generation.ht[i]:=hexam(i,Generation)
         else
          if i<=floor(Generation.Pivotal*Model.n+epsilon) then
@@ -598,7 +615,7 @@ end;
     tmp:=0;
     counter:=0;
     if not error then
-     if MainForm.ExamOn.Checked then
+     if (MainForm.ModelType.ItemIndex=1) then
        Begin
         For i:=1 to Model.n do
            if Generation.isprof[i]=1 then
@@ -621,7 +638,7 @@ end;
     if not error then if Generation.H=0 then begin error:=true; showmessage('CommonLabour=0'); end;
 
     tmp:=0;
-    if MainForm.ExamOn.Checked then
+    if (MainForm.ModelType.ItemIndex=1) then
        Begin
         For i:=1 to Model.n do
            if Generation.isprof[i]=0 then tmp:=tmp+1;
@@ -703,7 +720,7 @@ end;
     begin
       For i:=1 to Model.n do
         Generation.w[i]:=wi(i,Generation);
-      if not MainForm.ExamOn.Checked then
+      if not (MainForm.ModelType.ItemIndex=1) then
       if Generation.ht[Model.n]*Generation.wh<Generation.wl then
        if Mainform.PageControl1.ActivePageIndex=1 then
          error:=true else
@@ -734,14 +751,43 @@ end;
   Generation.T:=tmp;
   End;
 
-  Function FindIh(var Generation:PGeneration; a,b:integer):double;
+  Function FindCurrentPivotal(var Generation:PGeneration; a,b:integer):double;
   var i:integer;
   var left,right:double;
   begin
     if a<b then
     begin
       i:=round((a+b)/2);
+      TestGeneration(Generation);
 
+      Generation.pivotal:=i/Model.n;
+      CountLH(Generation);
+      left:=CountY(Generation);
+
+      Generation.pivotal:=(i+1)/Model.n;
+      CountLH(Generation);
+      right:=CountY(Generation);
+
+      if left>right then
+        Result:=FindExpectedPivotal(Generation,a,i) else
+      if left<right then
+        Result:=FindExpectedPivotal(Generation,i+1,b) else
+      Result:=i;
+
+      Generation:=Generation.Test;
+    end else
+      result:=b;
+
+  End;
+
+
+  Function FindExpectedPivotal(var Generation:PGeneration; a,b:integer):double;
+  var i:integer;
+  var left,right:double;
+  begin
+    if a<b then
+    begin
+      i:=round((a+b)/2);
       Case PF of
       0: left:=((1-Model.a)/Model.a)*HBig(i,Generation)/i;
       1: left:=((1-Model.a)/Model.a)*Power(HBig(i,Generation)/i,(1-Model.r));
@@ -749,12 +795,10 @@ end;
       end;
       right:=hline(i,Generation)/(1+Model.k);
 
-//      left:=PotentialGDP
-
       if left<right then
-        Result:=FindIh(Generation,a,i-1) else
+        Result:=FindExpectedPivotal(Generation,a,i-1) else
       if left>right then
-        Result:=FindIh(Generation,i+1,b) else
+        Result:=FindExpectedPivotal(Generation,i+1,b) else
       Result:=i;
     end else
       result:=b;
@@ -776,7 +820,7 @@ end;
   Begin
     For i:=1 to Model.n do
     Begin
-      if Mainform.ExamOn.Checked then
+      if (MainForm.ModelType.ItemIndex=1) then
        if Mainform.corruption.Checked then
         begin
         e1:=ExpectedSalary(i,Generation.Child.bribesize,Generation);
@@ -838,7 +882,7 @@ end;
   prof:boolean;
   hc:double;
   Begin
-   if mainform.ExamOn.Checked then
+   if (MainForm.ModelType.ItemIndex=1) then
      begin
        prof:=Generation.isprof[i]=1;
        hc:=Generation.averageprofhc;
@@ -1005,7 +1049,7 @@ end;
         if not flag then
          Run_pivotal:=-1;
 
-        if MainForm.ExamOn.Checked then
+        if (MainForm.ModelType.ItemIndex=1) then
         begin
          flag:=true;
          Run_bribetowl:=NewStrToDouble(MainForm.BribeEdit.Text,flag);
@@ -1246,7 +1290,7 @@ end;
        AddPoints(YT,Dynasty,Model.state.Y/Model.State.Parent.Y);
        MainForm.YChart.Series[0].AddXY(Dynasty,Model.state.Y/Model.State.Parent.Y);
 
-       if MainForm.ExamOn.Checked then
+       if (MainForm.ModelType.ItemIndex=1) then
        Begin
        d:=1;
        p:=1;
@@ -1967,6 +2011,24 @@ end;
 procedure TMainForm.CorruptionClick(Sender: TObject);
 begin
 bribeedit.Visible:=corruption.Checked;
+end;
+
+procedure TMainForm.ModelTypeChange(Sender: TObject);
+begin
+Case ModelType.ItemIndex of
+0,2,3:
+begin
+InitialHC.ItemIndex:=0;
+InitialHC.Buttons[2].Enabled:=false;
+end;
+1:
+begin
+InitialHC.ItemIndex:=2;
+InitialHC.Buttons[0].Enabled:=false;
+InitialHC.Buttons[1].Enabled:=false;
+InitialHC.Buttons[2].Enabled:=true;
+end;
+end;
 end;
 
 End.
