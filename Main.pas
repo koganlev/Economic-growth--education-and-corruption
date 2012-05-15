@@ -206,7 +206,7 @@ type
   TMas=array[1..SizeOfMas] of double;
 
   TGeneration = record
-    H,L,Y,T,B:double; //Human Capital, Common Labour, GDP, Taxes
+    H,L,Y,T,B,M:double; //Human Capital, Common Labour, GDP, Taxes
     pivotal,bribesize,bribetax,bribetaxmax,wH,wL:double; //Pivotal Dynasty, Skilled wage, Unskilled wage
     ht,mark,w,c,e,bribe,tax,isclever,isprof:TMas; //Human Capital, Wages, Consumption, Expenditures, Taxes, bribe
     averageprofhc:double;
@@ -256,7 +256,7 @@ var
   Procedure Step;
   Procedure SetStart_Ih_HC;
   Procedure CountHCM(var Generation:PGeneration);
-  Procedure CountLH(var Generation:PGeneration);
+  Procedure CountLH(var Generation:PGeneration; isreal:boolean);
   Function ExamResult(i:integer; Generation:PGeneration):integer;
   Procedure PassExam(var Generation:PGeneration);
   Procedure CountWages(var Generation:PGeneration);
@@ -450,19 +450,26 @@ end;
   var
   clevercount,i:integer;
   Begin
+    Model.State.BiE:=true;
     if not error and (MainForm.ModelType.ItemIndex=2)  then
         Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n;
 
     if not error and (MainForm.ModelType.ItemIndex=3) then
        if Model.State.BiE then
-        Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n
-       else
+        Begin
+        QuickSort(1,Model.n,Model.State.ht,Model.State.isclever,Model.State.isprof,Model.State.w,Model.State.mark,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
         Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n;
+        End
+       else
+        Begin
+        QuickSort(1,Model.n,Model.State.mark,Model.State.isclever,Model.State.isprof,Model.State.w,Model.State.ht,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
+        Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n;
+        End;
 
 
     if not error and (MainForm.ModelType.ItemIndex=1) then PassExam(Model.State);
 
-    if not error then CountLH(Model.State);
+    if not error then CountLH(Model.State, true);
     if not error then CountWages(Model.State);
 //    if not error then if (MainForm.TaxationEqual.checked or Mainform.TaxationInEqual.Checked) or Mainform.TaxationExpenditure.Checked then CountT(Model.State);
 
@@ -612,11 +619,14 @@ end;
            Generation.ht[i]:=hline(i,Generation);
         1:
           Generation.ht[i]:=hexam(i,Generation);
-        2,3:
+        2:
+          Generation.ht[i]:=Power(Generation.Parent.e[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
+        3:
           begin
           Generation.ht[i]:=Power(Generation.Parent.e[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
           Generation.mark[i]:=Max(Generation.ht[i],(1/Model.bribetowl)*Power(Generation.Parent.bribe[i]-Model.State.wL*Model.bribetowl,Model.k)*Power(Generation.ht[i]+1,1-Model.k));
           end;
+
         end;
   End;
 
@@ -632,7 +642,7 @@ end;
   End;
 
 
-  Procedure CountLH(var Generation:PGeneration);
+  Procedure CountLH(var Generation:PGeneration; isreal:boolean);
   var i:integer;
       tmp:double;
       counter:integer;
@@ -652,7 +662,10 @@ end;
        begin
         For i:=floor(Generation.Pivotal*Model.n+epsilon)+1 to Model.n do
             begin
-            tmp:=tmp+Generation.ht[i];
+            if isreal or Model.State.BiE then
+                tmp:=tmp+Generation.ht[i]
+            else
+                tmp:=tmp+Generation.mark[i];
             inc(counter);
             end;
        End;
@@ -661,6 +674,16 @@ end;
     Generation.proftotal:=counter;
 
     if not error then if Generation.H=0 then begin error:=true; showmessage('CommonLabour=0'); end;
+
+    if not error then
+     if (MainForm.ModelType.ItemIndex=4) and isreal then
+       begin
+        For i:=floor(Generation.Pivotal*Model.n+epsilon)+1 to Model.n do
+            tmp:=tmp+Generation.mark[i];
+        Generation.M:=tmp/Model.n;
+
+       Generation.B:=Generation.M-Generation.H
+       End;
 
     tmp:=0;
     if (MainForm.ModelType.ItemIndex=1) then
@@ -679,11 +702,11 @@ end;
 
   Function ExamResult(i:integer; Generation:PGeneration):integer;
    var
-   r:double;
+       r:double;
    Begin
-   randomize;
-   r:=random;
-   result:=integer(r<(Generation.ht[i]/(StupidHC+CleverHC)+BribeEffect*Generation.bribe[i]));
+       randomize;
+       r:=random;
+       result:=integer(r<(Generation.ht[i]/(StupidHC+CleverHC)+BribeEffect*Generation.bribe[i]));
    End;
 
   Procedure PassExam(var Generation:PGeneration);
@@ -787,11 +810,11 @@ end;
       TestGeneration(Generation);
 
       Generation.pivotal:=i/Model.n;
-      CountLH(Generation);
+      CountLH(Generation,false);
       left:=CountY(Generation);
 
       Generation.pivotal:=(i+1)/Model.n;
-      CountLH(Generation);
+      CountLH(Generation,false);
       right:=CountY(Generation);
 
       Generation:=Generation.Test;
@@ -890,12 +913,10 @@ end;
                 Generation.c[i]:=Generation.w[i]
           end;
         end;
-      2,3:
+      2:
         begin
         e1:=Power(Model.k/(1+Model.k)*Generation.w[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
         if generation.Parent<>nil then
-        if generation.Parent.Parent<>nil then
-        e2:=(Generation.wl/Generation.wh+Generation.Parent.wl/Generation.Parent.wh+Generation.Parent.Parent.wl/Generation.Parent.Parent.wh)/3 else
         e2:=(Generation.wl/Generation.wh+Generation.Parent.wl/Generation.Parent.wh)/2 else
         e2:=Generation.wl/Generation.wh;
         if e1>e2*1.5 then
@@ -908,6 +929,31 @@ end;
               Generation.c[i]:=Generation.w[i];
             End;
         end;
+      3:
+        begin
+        if Model.State.BiE then
+          e1:=Power(Model.k/(1+Model.k)*Generation.w[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k)
+        else
+          begin
+            w1:=Model.k/Model.bribetowl/(1+Model.k/Model.bribetowl);
+            w2:=Model.State.wL*Model.bribetowl/(1+Model.k/Model.bribetowl);
+            if w1*Generation.w[i]+w2 < Generation.w[i] then
+              e1:=Power(w1*Generation.w[i]+w2,Model.k)*Power(Generation.ht[i]+1,1-Model.k)
+            else
+              e1:=0;
+          end;
+        e2:=Generation.wl/Generation.wh;
+        if e1>e2*1.5 then
+            Begin
+              Generation.e[i]:=Model.k/(1+Model.k)*Generation.w[i];
+              Generation.c[i]:=1/(1+Model.k)*Generation.w[i];
+            End else
+            Begin
+              Generation.e[i]:=0;
+              Generation.c[i]:=Generation.w[i];
+            End;
+        end;
+
       end;
     end;
 
@@ -968,25 +1014,25 @@ end;
      begin
      if random(3)<1 then
        begin
-       Result:=CleverHC;
-       Generation.isclever[i]:=1;
+           Result:=CleverHC;
+           Generation.isclever[i]:=1;
        end
        else
        begin
-       Result:=StupidHC;
-       Generation.isclever[i]:=0;
+           Result:=StupidHC;
+           Generation.isclever[i]:=0;
        end;
      end
      else
      if random(3)<1 then
        begin
-       Result:=StupidHC;
-       Generation.isclever[i]:=0;
+           Result:=StupidHC;
+           Generation.isclever[i]:=0;
        end
        else
        begin
-       Result:=CleverHC;
-       Generation.isclever[i]:=1;
+           Result:=CleverHC;
+           Generation.isclever[i]:=1;
        end;
 
   End;
@@ -1107,13 +1153,10 @@ end;
         if not flag then
          Run_pivotal:=-1;
 
-        if (MainForm.ModelType.ItemIndex=1) then
-        begin
-         flag:=true;
-         Run_bribetowl:=NewStrToDouble(MainForm.BribeEdit.Text,flag);
-         if not flag then
+        flag:=true;
+        Run_bribetowl:=NewStrToDouble(MainForm.BribeEdit.Text,flag);
+        if not flag then
          Run_pivotal:=-1;
-        end;
 
         if MainForm.PFType.ItemIndex=0 then if Run_pivotal<=Power((1-Run_a),beta) then
         begin
