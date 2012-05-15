@@ -120,7 +120,7 @@ object MainForm: TMainForm
         Top = 324
         Width = 473
         Height = 265
-        ActivePage = TabSheet4
+        ActivePage = TabSheet3
         TabOrder = 3
         object TabSheet3: TTabSheet
           Caption = 'Human Capital'
@@ -603,6 +603,7 @@ object MainForm: TMainForm
         LabelPosition = lpLeft
         TabOrder = 6
         Text = '1'
+        Visible = False
       end
       object CleverHCEdit: TLabeledEdit
         Left = 392
@@ -615,6 +616,7 @@ object MainForm: TMainForm
         LabelPosition = lpLeft
         TabOrder = 7
         Text = '2'
+        Visible = False
       end
     end
     object TabSheet2: TTabSheet
@@ -1289,8 +1291,8 @@ object MainForm: TMainForm
     OnClick = VaryOptionsClick
   end
   object Corruption: TCheckBox
-    Left = 504
-    Top = 320
+    Left = 640
+    Top = 224
     Width = 121
     Height = 17
     Caption = 'Corruption'
@@ -1300,33 +1302,45 @@ object MainForm: TMainForm
     OnClick = CorruptionClick
   end
   object ModelType: TComboBox
-    Left = 688
+    Left = 640
     Top = 24
-    Width = 177
+    Width = 225
     Height = 21
     ItemHeight = 13
-    ItemIndex = 1
+    ItemIndex = 2
     TabOrder = 16
-    Text = #1052#1086#1103' '#1091#1087#1088#1086#1097#1077#1085#1085#1072#1103' '#1084#1086#1076#1077#1083#1100' '#1089' '#1082#1086#1088#1088#1091#1087#1094#1080#1077#1081
+    Text = #1052#1086#1103' '#1084#1086#1076#1080#1092#1080#1082#1072#1094#1080#1103' '#1084#1086#1076#1077#1083#1080' '#1041#1086#1088#1080#1089#1086#1074#1072
     OnChange = ModelTypeChange
     Items.Strings = (
       #1052#1086#1076#1077#1083#1100' '#1041#1086#1088#1080#1089#1086#1074#1072' (1)'
       #1052#1086#1103' '#1091#1087#1088#1086#1097#1077#1085#1085#1072#1103' '#1084#1086#1076#1077#1083#1100' '#1089' '#1082#1086#1088#1088#1091#1087#1094#1080#1077#1081
-      #1052#1086#1103' '#1084#1086#1076#1080#1092#1080#1082#1072#1094#1080#1103' '#1084#1086#1076#1077#1083#1080' 1.'
-      #1052#1086#1103' '#1084#1086#1076#1080#1092#1080#1082#1072#1094#1080#1103' '#1084#1086#1076#1077#1083#1080' 1 '#1089' '#1082#1086#1088#1088#1091#1087#1094#1080#1077#1081)
+      #1052#1086#1103' '#1084#1086#1076#1080#1092#1080#1082#1072#1094#1080#1103' '#1084#1086#1076#1077#1083#1080' '#1041#1086#1088#1080#1089#1086#1074#1072
+      #1052#1086#1103' '#1084#1086#1076#1080#1092#1080#1082#1072#1094#1080#1103' '#1084#1086#1076#1077#1083#1080' '#1041#1086#1088#1080#1089#1086#1074#1072' '#1089' '#1082#1086#1088#1088#1091#1087#1094#1080#1077#1081)
   end
   object InitialHC: TRadioGroup
-    Left = 688
+    Left = 640
     Top = 56
     Width = 177
     Height = 89
     Caption = #1053#1072#1095#1072#1083#1100#1085#1086#1077' '#1088#1072#1089#1087#1088#1077#1076#1077#1083#1077#1085#1080#1077
-    ItemIndex = 2
+    ItemIndex = 0
     Items.Strings = (
-      'Linear Distribution'
-      'Power Distribution'
-      'Manual')
+      #1051#1080#1085#1077#1081#1085#1086#1077
+      #1057#1090#1077#1087#1077#1085#1085#1086#1077
+      #1040#1074#1090#1086#1084#1072#1090#1080#1095#1077#1089#1082#1086#1077)
     TabOrder = 17
+  end
+  object PFType: TRadioGroup
+    Left = 640
+    Top = 152
+    Width = 177
+    Height = 65
+    Caption = #1055#1088#1086#1080#1079#1074#1086#1076#1089#1090#1074#1077#1085#1085#1072#1103' '#1092#1091#1085#1082#1094#1080#1103
+    ItemIndex = 0
+    Items.Strings = (
+      #1050#1086#1073#1073'-'#1044#1091#1075#1083#1072#1089
+      'CES')
+    TabOrder = 18
   end
   object SaveDialog1: TSaveDialog
     DefaultExt = '.txt'
