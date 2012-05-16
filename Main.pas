@@ -147,7 +147,6 @@ type
     LineSeries8: TPointSeries;
     Series6: TPointSeries;
     Series15: TPointSeries;
-    BribeEdit: TLabeledEdit;
     Corruption: TCheckBox;
     Series3: TLineSeries;
     LineSeries4: TLineSeries;
@@ -158,6 +157,7 @@ type
     ModelType: TComboBox;
     InitialHC: TRadioGroup;
     PFType: TRadioGroup;
+    BribeEdit: TLabeledEdit;
     procedure GoBtnClick(Sender: TObject);
     procedure CloseBtnClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -450,20 +450,20 @@ end;
   var
   clevercount,i:integer;
   Begin
-    Model.State.BiE:=true;
+    Model.State.BiE:=false;
     if not error and (MainForm.ModelType.ItemIndex=2)  then
         Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n;
 
     if not error and (MainForm.ModelType.ItemIndex=3) then
        if Model.State.BiE then
         Begin
-        QuickSort(1,Model.n,Model.State.ht,Model.State.isclever,Model.State.isprof,Model.State.w,Model.State.mark,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
-        Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n;
+            QuickSort(1,Model.n,Model.State.ht,Model.State.isclever,Model.State.isprof,Model.State.w,Model.State.mark,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
+            Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n;
         End
        else
         Begin
-        QuickSort(1,Model.n,Model.State.mark,Model.State.isclever,Model.State.isprof,Model.State.w,Model.State.ht,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
-        Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n;
+            QuickSort(1,Model.n,Model.State.mark,Model.State.isclever,Model.State.isprof,Model.State.w,Model.State.ht,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
+            Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n;
         End;
 
 
@@ -567,7 +567,10 @@ end;
            error:=true;
 
      for i:=1 to Model.n do
+      Begin
        Model.Start.ht[i]:=Model.Start.Pivotal*Power((i-1)/Model.n,n);
+       Model.Start.mark[i]:=Model.Start.ht[i];
+      End;
     end;
 
     if (MainForm.InitialHC.ItemIndex=0) then
@@ -598,11 +601,13 @@ end;
       end;
 
         For i:=1 to Model.n do
-         if i<=Floor(Model.Start.Pivotal*Model.n+epsilon) then
-           Model.Start.ht[i]:=0
-          else
-            Model.Start.ht[i]:=Gamma*(x0+(i-1-Model.Start.Pivotal*Model.n)/Model.n*alfa);
-
+         Begin
+           if i<=Floor(Model.Start.Pivotal*Model.n+epsilon) then
+               Model.Start.ht[i]:=0
+            else
+              Model.Start.ht[i]:=Gamma*(x0+(i-1-Model.Start.Pivotal*Model.n)/Model.n*alfa);
+           Model.Start.mark[i]:=Model.Start.ht[i];
+         end;
    end;
    end;
 
@@ -662,10 +667,10 @@ end;
        begin
         For i:=floor(Generation.Pivotal*Model.n+epsilon)+1 to Model.n do
             begin
-            if isreal or Model.State.BiE then
-                tmp:=tmp+Generation.ht[i]
+            if (MainForm.ModelType.ItemIndex=3) and not Model.State.BiE and not isreal then
+                tmp:=tmp+Generation.mark[i]
             else
-                tmp:=tmp+Generation.mark[i];
+                tmp:=tmp+Generation.ht[i];
             inc(counter);
             end;
        End;
@@ -673,10 +678,11 @@ end;
     Generation.averageprofhc:=tmp/counter;
     Generation.proftotal:=counter;
 
-    if not error then if Generation.H=0 then begin error:=true; showmessage('CommonLabour=0'); end;
+    if not error then if Generation.H=0 then begin error:=true; showmessage('HumanCapital=0'); end;
 
+    tmp:=0;
     if not error then
-     if (MainForm.ModelType.ItemIndex=4) and isreal then
+     if (MainForm.ModelType.ItemIndex=3) and isreal then
        begin
         For i:=floor(Generation.Pivotal*Model.n+epsilon)+1 to Model.n do
             tmp:=tmp+Generation.mark[i];
@@ -696,7 +702,7 @@ end;
        End;
 
     Generation.L:=tmp/Model.n;
-    if not error then if Generation.L=0 then begin error:=true; showmessage('HumanCapital=0'); end;
+    if not error then if Generation.L=0 then begin error:=true; showmessage('CommonLabour=0'); end;
    end;
 
 
@@ -866,7 +872,7 @@ end;
 
   Procedure CountExpensesConsumption(Var Generation:PGeneration);
   var i:integer;
-  e1,e2,w1,w2:double;
+  e1,e2,w1,w2,ifstudy,ifbribe:double;
   Begin
     For i:=1 to Model.n do
     Begin
@@ -931,27 +937,34 @@ end;
         end;
       3:
         begin
-        if Model.State.BiE then
-          e1:=Power(Model.k/(1+Model.k)*Generation.w[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k)
-        else
-          begin
-            w1:=Model.k/Model.bribetowl/(1+Model.k/Model.bribetowl);
-            w2:=Model.State.wL*Model.bribetowl/(1+Model.k/Model.bribetowl);
-            if w1*Generation.w[i]+w2 < Generation.w[i] then
-              e1:=Power(w1*Generation.w[i]+w2,Model.k)*Power(Generation.ht[i]+1,1-Model.k)
-            else
-              e1:=0;
-          end;
-        e2:=Generation.wl/Generation.wh;
-        if e1>e2*1.5 then
-            Begin
-              Generation.e[i]:=Model.k/(1+Model.k)*Generation.w[i];
-              Generation.c[i]:=1/(1+Model.k)*Generation.w[i];
-            End else
-            Begin
-              Generation.e[i]:=0;
-              Generation.c[i]:=Generation.w[i];
-            End;
+          e2:=Generation.wl/Generation.wh;
+          ifstudy:=Power(Model.k/(1+Model.k)*Generation.w[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
+
+          w1:=Model.k/(Model.bribetowl+Model.k);
+          w2:=Model.State.wL*Power(Model.bribetowl,2)/(Model.bribetowl+Model.k);
+          if w1*Generation.w[i]+w2 < Generation.w[i] then
+            ifbribe:=(1/Model.bribetowl)*Power(w1*Generation.w[i]+w2-Model.state.wL*Model.bribetowl,Model.k)*Power(Generation.ht[i]+1,1-Model.k)
+          else
+            ifbribe:=0;
+
+          if max(ifstudy,ifbribe)<e2*1.5 then
+              begin
+                Generation.e[i]:=0;
+                Generation.bribe[i]:=0;
+                Generation.c[i]:=Generation.w[i];
+              end else
+
+          if ifbribe>ifstudy then
+              begin
+                Generation.e[i]:=0;
+                Generation.bribe[i]:=w1*Generation.w[i]+w2;
+                Generation.c[i]:=Generation.w[i]-Generation.bribe[i];
+              end else
+              begin
+                Generation.e[i]:=Model.k/(1+Model.k)*Generation.w[i];
+                Generation.bribe[i]:=0;
+                Generation.c[i]:=1/(1+Model.k)*Generation.w[i];
+              end;
         end;
 
       end;
@@ -989,10 +1002,15 @@ end;
        prof:=Generation.isprof[i]=1;
        hc:=Generation.averageprofhc;
      end;
-    2,3:
+    2:
      begin
        prof:=i>floor(Model.State.pivotal*Model.n+epsilon) ;
        hc:=Generation.ht[i];
+     end;
+    3:
+     begin
+       prof:=i>floor(Model.State.pivotal*Model.n+epsilon) ;
+       hc:=Generation.mark[i];
      end;
     end;
 
@@ -2116,13 +2134,12 @@ end;
 
 procedure TMainForm.ModelTypeChange(Sender: TObject);
 begin
-Case ModelType.ItemIndex of
+  Case ModelType.ItemIndex of
   0,2,3:
   begin
       InitialHC.ItemIndex:=0;
       InitialHC.Buttons[2].Enabled:=false;
       ihedit.Visible:=true;
-      bribeedit.Visible:=false;
       kedit.Visible:=true;
       StupidHCEdit.Visible:=false;
       CleverHCEdit.Visible:=false;
@@ -2134,12 +2151,19 @@ Case ModelType.ItemIndex of
       InitialHC.Buttons[1].Enabled:=false;
       InitialHC.Buttons[2].Enabled:=true;
       ihedit.Visible:=false;
-      bribeedit.Visible:=true;
       kedit.Visible:=false;
       StupidHCEdit.Visible:=true;
       CleverHCEdit.Visible:=true;
   end;
-end;
+  end;
+
+  Case ModelType.ItemIndex of
+    0,2:
+      bribeedit.Visible:=false;
+    1,3:
+      bribeedit.Visible:=true;
+  end;
+
 end;
 
 End.

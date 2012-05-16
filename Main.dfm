@@ -579,19 +579,6 @@ object MainForm: TMainForm
           end
         end
       end
-      object BribeEdit: TLabeledEdit
-        Left = 80
-        Top = 8
-        Width = 50
-        Height = 21
-        EditLabel.Width = 53
-        EditLabel.Height = 13
-        EditLabel.Caption = 'Bribe to wL'
-        LabelPosition = lpLeft
-        TabOrder = 5
-        Text = '0,5'
-        Visible = False
-      end
       object StupidHCEdit: TLabeledEdit
         Left = 288
         Top = 8
@@ -601,7 +588,7 @@ object MainForm: TMainForm
         EditLabel.Height = 13
         EditLabel.Caption = 'Stupid HC'
         LabelPosition = lpLeft
-        TabOrder = 6
+        TabOrder = 5
         Text = '1'
         Visible = False
       end
@@ -614,7 +601,7 @@ object MainForm: TMainForm
         EditLabel.Height = 13
         EditLabel.Caption = 'Clever HC'
         LabelPosition = lpLeft
-        TabOrder = 7
+        TabOrder = 6
         Text = '2'
         Visible = False
       end
@@ -1307,9 +1294,9 @@ object MainForm: TMainForm
     Width = 225
     Height = 21
     ItemHeight = 13
-    ItemIndex = 2
+    ItemIndex = 3
     TabOrder = 16
-    Text = #1052#1086#1103' '#1084#1086#1076#1080#1092#1080#1082#1072#1094#1080#1103' '#1084#1086#1076#1077#1083#1080' '#1041#1086#1088#1080#1089#1086#1074#1072
+    Text = #1052#1086#1103' '#1084#1086#1076#1080#1092#1080#1082#1072#1094#1080#1103' '#1084#1086#1076#1077#1083#1080' '#1041#1086#1088#1080#1089#1086#1074#1072' '#1089' '#1082#1086#1088#1088#1091#1087#1094#1080#1077#1081
     OnChange = ModelTypeChange
     Items.Strings = (
       #1052#1086#1076#1077#1083#1100' '#1041#1086#1088#1080#1089#1086#1074#1072' (1)'
@@ -1341,6 +1328,18 @@ object MainForm: TMainForm
       #1050#1086#1073#1073'-'#1044#1091#1075#1083#1072#1089
       'CES')
     TabOrder = 18
+  end
+  object BribeEdit: TLabeledEdit
+    Left = 696
+    Top = 248
+    Width = 50
+    Height = 21
+    EditLabel.Width = 53
+    EditLabel.Height = 13
+    EditLabel.Caption = 'Bribe to wL'
+    LabelPosition = lpLeft
+    TabOrder = 19
+    Text = '0,5'
   end
   object SaveDialog1: TSaveDialog
     DefaultExt = '.txt'
