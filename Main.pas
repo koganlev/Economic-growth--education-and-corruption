@@ -634,24 +634,12 @@ end;
           Generation.ht[i]:=Power(Generation.Parent.e[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
         3:
           begin
-          Generation.ht[i]:=Power(Generation.Parent.e[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
-          Generation.mark[i]:=Max(Generation.ht[i],(1/Model.bribetowl)*Power(Generation.Parent.bribe[i]-Model.State.wL*Model.bribetowl,Model.k)*Power(Generation.ht[i]+1,1-Model.k));
+          Generation.ht[i]:=Max(Power(Generation.Parent.e[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k),0.01);
+          Generation.mark[i]:=Max(Generation.ht[i],(1/Model.bribetowl)*Power(Generation.Parent.bribe[i]-Model.State.wL*Model.bribetowl,Model.k){*Power(Generation.ht[i]+1,1-Model.k)});
           end;
 
         end;
   End;
-
-  Procedure CountMarks(var Generation:PGeneration);
-  var i:integer;
-  Begin
-    For i:=1 to Model.n do
-     begin
-      if not error then begin
-           Generation.mark[i]:=mline(i,Generation)
-      end;
-     end;
-  End;
-
 
   Procedure CountLH(var Generation:PGeneration; isreal:boolean);
   var i:integer;
@@ -695,7 +683,7 @@ end;
         Generation.M:=tmp/Model.n;
 
        Generation.B:=Generation.M-Generation.H;
-       Generation.bribetax:=Model.State.B/Model.State.H;
+       Generation.bribetax:=Model.State.B/Model.State.M;
        End;
 
     tmp:=0;
@@ -735,11 +723,11 @@ end;
   Begin
     if (MainForm.ModelType.ItemIndex=3) and not Model.State.BiE then
       betamax:=Model.examprice else
-      betamax:=1;
+      betamax:=0;
 
     if (MainForm.ModelType.ItemIndex=3) and Model.State.BiE then
       beta:=Model.State.bribetax else
-      beta:=1;
+      beta:=0;
 
     Generation.Y:=CountY(Generation)*(1-betamax);
     Generation.wH:=CountWh(Generation)*(1-betamax)*(1-beta);
@@ -888,7 +876,7 @@ end;
 
   Procedure CountExpensesConsumption(Var Generation:PGeneration);
   var i:integer;
-  e1,e2,w1,w2,ifstudy,ifbribe:double;
+  e1,e2,w1,w2,ifstudy,ifbribe,profminimum:double;
   Begin
     For i:=1 to Model.n do
     Begin
@@ -939,9 +927,9 @@ end;
         begin
         e1:=Power(Model.k/(1+Model.k)*Generation.w[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
         if generation.Parent<>nil then
-        e2:=(Generation.wl/Generation.wh+Generation.Parent.wl/Generation.Parent.wh)/2 else
-        e2:=Generation.wl/Generation.wh;
-        if e1>e2*1.5 then
+        profminimum:=(Generation.wl/Generation.wh+Generation.Parent.wl/Generation.Parent.wh)/2 else
+        profminimum:=Generation.wl/Generation.wh;
+        if e1>profminimum*1.5 then
             Begin
               Generation.e[i]:=Model.k/(1+Model.k)*Generation.w[i];
               Generation.c[i]:=1/(1+Model.k)*Generation.w[i];
@@ -953,17 +941,28 @@ end;
         end;
       3:
         begin
-          e2:=Generation.wl/Generation.wh;
+
+          profminimum:=Generation.wl/Generation.wh;
           ifstudy:=Power(Model.k/(1+Model.k)*Generation.w[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
 
           w1:=Model.k/(Model.bribetowl+Model.k);
           w2:=Model.State.wL*Power(Model.bribetowl,2)/(Model.bribetowl+Model.k);
           if w1*Generation.w[i]+w2 < Generation.w[i] then
-            ifbribe:=(1/Model.bribetowl)*Power(w1*Generation.w[i]+w2-Model.state.wL*Model.bribetowl,Model.k)*Power(Generation.ht[i]+1,1-Model.k)
+            ifbribe:=(1/Model.bribetowl)*Power((w1*Generation.w[i]+w2-Model.state.wL*Model.bribetowl),Model.k)
           else
             ifbribe:=0;
 
-          if max(ifstudy,ifbribe)<e2*1.5 then
+          if (i>floor(Generation.Pivotal*Model.n+epsilon)) or not Model.State.BiE then
+            ifbribe:=0;
+
+
+          if i=10 then
+           Generation.e[i]:=Generation.e[i]*2;
+
+          if i=810 then
+           Generation.e[i]:=Generation.e[i]*2;
+
+          if max(ifstudy,ifbribe)<profminimum*1.5 then
               begin
                 Generation.e[i]:=0;
                 Generation.bribe[i]:=0;
@@ -1111,7 +1110,7 @@ end;
        Model.steps:=steps;
 
        Model.bribetowl:=run_bribetowl;
-       Model.examprice:=run_examprice;       
+       Model.examprice:=run_examprice;
 
        FirstStep;
 
@@ -2191,5 +2190,4 @@ begin
 
 end;
 
-End.
-
+end.
