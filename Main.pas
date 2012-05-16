@@ -158,6 +158,7 @@ type
     InitialHC: TRadioGroup;
     PFType: TRadioGroup;
     BribeEdit: TLabeledEdit;
+    ExamPriceEdit: TLabeledEdit;
     procedure GoBtnClick(Sender: TObject);
     procedure CloseBtnClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -207,7 +208,7 @@ type
 
   TGeneration = record
     H,L,Y,T,B,M:double; //Human Capital, Common Labour, GDP, Taxes
-    pivotal,bribesize,bribetax,bribetaxmax,wH,wL:double; //Pivotal Dynasty, Skilled wage, Unskilled wage
+    pivotal,bribesize,bribetax,wH,wL:double; //Pivotal Dynasty, Skilled wage, Unskilled wage
     ht,mark,w,c,e,bribe,tax,isclever,isprof:TMas; //Human Capital, Wages, Consumption, Expenditures, Taxes, bribe
     averageprofhc:double;
     proftotal:integer;
@@ -217,7 +218,7 @@ type
 
   Tmodel = record
     Start,State:PGeneration;
-    a,k,r,bribetowl:double;
+    a,k,r,bribetowl,examprice:double;
     n,steps:integer; //amount of dynasties, amount of evolution steps
     end;
 
@@ -236,7 +237,7 @@ var
   CleverHC,StupidHC:double;
   IHIH,YIH,SPIh,GDPIh,TaxIh,HCDIh,WDIh,CDIh,EDIh,TaxDIh:TGraph1;
   IHT,YT,SPT,GDPT,TaxT,HCD,WD,CD,ED,TaxD:TGraph1;
-  Run_pivotal,run_a,run_k,run_r,run_tax,run_cltax,run_lambda,run_bribetowl:double;
+  Run_pivotal,run_a,run_k,run_r,run_tax,run_examprice,run_cltax,run_lambda,run_bribetowl:double;
   run_n,run_steps:integer;
   run_min_variable,run_max_variable:double;
   expectedpivotal:double;
@@ -450,12 +451,12 @@ end;
   var
   clevercount,i:integer;
   Begin
-    Model.State.BiE:=false;
+    Model.State.BiE:=true;
     if not error and (MainForm.ModelType.ItemIndex=2)  then
         Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n;
 
     if not error and (MainForm.ModelType.ItemIndex=3) then
-       if Model.State.BiE then
+       if not Model.State.BiE then
         Begin
             QuickSort(1,Model.n,Model.State.ht,Model.State.isclever,Model.State.isprof,Model.State.w,Model.State.mark,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
             Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n;
@@ -507,6 +508,11 @@ end;
 
     if not error then Model.State:=Model.State.Parent;
     if not error then  CountExpensesConsumption(Model.State);
+
+    if not error and (MainForm.ModelType.ItemIndex=3) then
+      if Power(Model.State.bribetax,Model.a)>Model.examprice then
+        Model.State.Child.BiE:=false else
+        Model.State.Child.BiE:=true;
   End;
 
   Procedure FirstStep;
@@ -667,7 +673,7 @@ end;
        begin
         For i:=floor(Generation.Pivotal*Model.n+epsilon)+1 to Model.n do
             begin
-            if (MainForm.ModelType.ItemIndex=3) and not Model.State.BiE and not isreal then
+            if (MainForm.ModelType.ItemIndex=3) and Model.State.BiE and not isreal then
                 tmp:=tmp+Generation.mark[i]
             else
                 tmp:=tmp+Generation.ht[i];
@@ -688,7 +694,8 @@ end;
             tmp:=tmp+Generation.mark[i];
         Generation.M:=tmp/Model.n;
 
-       Generation.B:=Generation.M-Generation.H
+       Generation.B:=Generation.M-Generation.H;
+       Generation.bribetax:=Model.State.B/Model.State.H;
        End;
 
     tmp:=0;
@@ -724,10 +731,19 @@ end;
 
 
   Procedure CountWages(var Generation:PGeneration);
+  var betamax, beta:double;
   Begin
-    Generation.Y:=CountY(Generation);
-    Generation.wH:=CountWh(Generation);
-    Generation.wL:=CountWl(Generation);
+    if (MainForm.ModelType.ItemIndex=3) and not Model.State.BiE then
+      betamax:=Model.examprice else
+      betamax:=1;
+
+    if (MainForm.ModelType.ItemIndex=3) and Model.State.BiE then
+      beta:=Model.State.bribetax else
+      beta:=1;
+
+    Generation.Y:=CountY(Generation)*(1-betamax);
+    Generation.wH:=CountWh(Generation)*(1-betamax)*(1-beta);
+    Generation.wL:=CountWl(Generation)*(1-betamax);
     DistributeWages(Generation);
   End;
 
@@ -1095,6 +1111,7 @@ end;
        Model.steps:=steps;
 
        Model.bribetowl:=run_bribetowl;
+       Model.examprice:=run_examprice;       
 
        FirstStep;
 
@@ -1175,6 +1192,14 @@ end;
         Run_bribetowl:=NewStrToDouble(MainForm.BribeEdit.Text,flag);
         if not flag then
          Run_pivotal:=-1;
+
+        flag:=true;
+        Run_examprice:=NewStrToDouble(MainForm.exampriceEdit.Text,flag);
+        if not flag then
+         Run_pivotal:=-1;
+
+
+
 
         if MainForm.PFType.ItemIndex=0 then if Run_pivotal<=Power((1-Run_a),beta) then
         begin

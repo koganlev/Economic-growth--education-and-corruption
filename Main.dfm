@@ -1341,6 +1341,18 @@ object MainForm: TMainForm
     TabOrder = 19
     Text = '0,5'
   end
+  object ExamPriceEdit: TLabeledEdit
+    Left = 696
+    Top = 272
+    Width = 50
+    Height = 21
+    EditLabel.Width = 53
+    EditLabel.Height = 13
+    EditLabel.Caption = 'Bribe to wL'
+    LabelPosition = lpLeft
+    TabOrder = 20
+    Text = '0,1'
+  end
   object SaveDialog1: TSaveDialog
     DefaultExt = '.txt'
     Filter = 'CSV|*.csv|Text File|*.txt|All Files|*.*'
