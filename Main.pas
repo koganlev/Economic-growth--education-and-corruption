@@ -278,7 +278,6 @@ var
   Function Psi(x:double):double;
   function hexam(i:integer; var Generation:PGeneration):double;
   function hline(i:integer; var Generation:PGeneration):double;
-  function mline(i:integer; var Generation:PGeneration):double;
   Function hbig(i:integer; var Generation:PGeneration):double;
 
   Procedure Experiment(ih,a,k:double;n,steps:integer;single_exp:boolean);
@@ -452,10 +451,10 @@ end;
   clevercount,i:integer;
   Begin
     Model.State.BiE:=true;
-    if not error and (MainForm.ModelType.ItemIndex=2)  then
+    if not error and ((MainForm.ModelType.ItemIndex=2)  or (MainForm.ModelType.ItemIndex=4)) then
         Model.State.Pivotal:=(FindCurrentPivotal(Model.State,0,Model.n))/Model.n;
 
-    if not error and (MainForm.ModelType.ItemIndex=3) then
+    if not error and ((MainForm.ModelType.ItemIndex=3) or (MainForm.ModelType.ItemIndex=5) )then
        if not Model.State.BiE then
         Begin
             QuickSort(1,Model.n,Model.State.ht,Model.State.isclever,Model.State.isprof,Model.State.w,Model.State.mark,Model.State.c,Model.State.e,Model.State.tax,Model.State.bribe);
@@ -509,7 +508,7 @@ end;
     if not error then Model.State:=Model.State.Parent;
     if not error then  CountExpensesConsumption(Model.State);
 
-    if not error and (MainForm.ModelType.ItemIndex=3) then
+    if not error and ((MainForm.ModelType.ItemIndex=3) or (MainForm.ModelType.ItemIndex=5))then
       if Power(Model.State.bribetax,Model.a)>Model.examprice then
         Model.State.Child.BiE:=false else
         Model.State.Child.BiE:=true;
@@ -630,9 +629,9 @@ end;
            Generation.ht[i]:=hline(i,Generation);
         1:
           Generation.ht[i]:=hexam(i,Generation);
-        2:
+        2,4:
           Generation.ht[i]:=Power(Generation.Parent.e[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
-        3:
+        3,5:
           begin
           Generation.ht[i]:=Max(Power(Generation.Parent.e[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k),0.01);
           Generation.mark[i]:=Max(Generation.ht[i],(1/Model.bribetowl)*Power(Generation.Parent.bribe[i]-Model.State.wL*Model.bribetowl,Model.k){*Power(Generation.ht[i]+1,1-Model.k)});
@@ -661,7 +660,7 @@ end;
        begin
         For i:=floor(Generation.Pivotal*Model.n+epsilon)+1 to Model.n do
             begin
-            if (MainForm.ModelType.ItemIndex=3) and Model.State.BiE and not isreal then
+            if ((MainForm.ModelType.ItemIndex=3) or (MainForm.ModelType.ItemIndex=5)) and Model.State.BiE and not isreal then
                 tmp:=tmp+Generation.mark[i]
             else
                 tmp:=tmp+Generation.ht[i];
@@ -676,7 +675,7 @@ end;
 
     tmp:=0;
     if not error then
-     if (MainForm.ModelType.ItemIndex=3) and isreal then
+     if ((MainForm.ModelType.ItemIndex=3) or (MainForm.ModelType.ItemIndex=5)) and isreal then
        begin
         For i:=floor(Generation.Pivotal*Model.n+epsilon)+1 to Model.n do
             tmp:=tmp+Generation.mark[i];
@@ -721,11 +720,11 @@ end;
   Procedure CountWages(var Generation:PGeneration);
   var betamax, beta:double;
   Begin
-    if (MainForm.ModelType.ItemIndex=3) and not Model.State.BiE then
+    if ((MainForm.ModelType.ItemIndex=3) or (MainForm.ModelType.ItemIndex=5))  and not Model.State.BiE then
       betamax:=Model.examprice else
       betamax:=0;
 
-    if (MainForm.ModelType.ItemIndex=3) and Model.State.BiE then
+    if ((MainForm.ModelType.ItemIndex=3) or (MainForm.ModelType.ItemIndex=5))  and Model.State.BiE then
       beta:=Model.State.bribetax else
       beta:=0;
 
@@ -926,9 +925,10 @@ end;
       2:
         begin
         e1:=Power(Model.k/(1+Model.k)*Generation.w[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
-        if generation.Parent<>nil then
-        profminimum:=(Generation.wl/Generation.wh+Generation.Parent.wl/Generation.Parent.wh)/2 else
+ //       if generation.Parent<>nil then
+ //       profminimum:=(Generation.wl/Generation.wh+Generation.Parent.wl/Generation.Parent.wh)/2 else
         profminimum:=Generation.wl/Generation.wh;
+
         if e1>profminimum*1.5 then
             Begin
               Generation.e[i]:=Model.k/(1+Model.k)*Generation.w[i];
@@ -955,14 +955,58 @@ end;
           if (i>floor(Generation.Pivotal*Model.n+epsilon)) or not Model.State.BiE then
             ifbribe:=0;
 
-
-          if i=10 then
-           Generation.e[i]:=Generation.e[i]*2;
-
-          if i=810 then
-           Generation.e[i]:=Generation.e[i]*2;
-
           if max(ifstudy,ifbribe)<profminimum*1.5 then
+              begin
+                Generation.e[i]:=0;
+                Generation.bribe[i]:=0;
+                Generation.c[i]:=Generation.w[i];
+              end else
+
+          if ifbribe>ifstudy then
+              begin
+                Generation.e[i]:=0;
+                Generation.bribe[i]:=w1*Generation.w[i]+w2;
+                Generation.c[i]:=Generation.w[i]-Generation.bribe[i];
+              end else
+              begin
+                Generation.e[i]:=Model.k/(1+Model.k)*Generation.w[i];
+                Generation.bribe[i]:=0;
+                Generation.c[i]:=1/(1+Model.k)*Generation.w[i];
+              end;
+        end;
+      4:
+        begin
+        e1:=Power(Model.k/(1+Model.k)*Generation.w[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
+ //       if generation.Parent<>nil then
+ //       profminimum:=(Generation.wl/Generation.wh+Generation.Parent.wl/Generation.Parent.wh)/2 else
+        profminimum:=Power(Model.k/(1+Model.k)*Generation.wl,Model.k)*Power(Generation.wl/Generation.wh+1,1-Model.k);
+        if e1>profminimum then
+            Begin
+              Generation.e[i]:=Model.k/(1+Model.k)*Generation.w[i];
+              Generation.c[i]:=1/(1+Model.k)*Generation.w[i];
+            End else
+            Begin
+              Generation.e[i]:=0;
+              Generation.c[i]:=Generation.w[i];
+            End;
+        end;
+      5:
+        begin
+          profminimum:=Power(Model.k/(1+Model.k)*Generation.wl,Model.k)*Power(Generation.wl/Generation.wh+1,1-Model.k);
+
+          ifstudy:=Power(Model.k/(1+Model.k)*Generation.w[i],Model.k)*Power(Generation.ht[i]+1,1-Model.k);
+
+          w1:=Model.k/(Model.bribetowl+Model.k);
+          w2:=Model.State.wL*Power(Model.bribetowl,2)/(Model.bribetowl+Model.k);
+          if w1*Generation.w[i]+w2 < Generation.w[i] then
+            ifbribe:=(1/Model.bribetowl)*Power((w1*Generation.w[i]+w2-Model.state.wL*Model.bribetowl),Model.k)
+          else
+            ifbribe:=0;
+
+          if (i>floor(Generation.Pivotal*Model.n+epsilon)) or not Model.State.BiE then
+            ifbribe:=0;
+
+          if max(ifstudy,ifbribe)<profminimum then
               begin
                 Generation.e[i]:=0;
                 Generation.bribe[i]:=0;
@@ -1017,12 +1061,12 @@ end;
        prof:=Generation.isprof[i]=1;
        hc:=Generation.averageprofhc;
      end;
-    2:
+    2,4:
      begin
        prof:=i>floor(Model.State.pivotal*Model.n+epsilon) ;
        hc:=Generation.ht[i];
      end;
-    3:
+    3,5:
      begin
        prof:=i>floor(Model.State.pivotal*Model.n+epsilon) ;
        hc:=Generation.mark[i];
@@ -1077,12 +1121,6 @@ end;
    else
      Result:=Gamma*Power(Generation.Parent.wH*(1+Run_Lambda),Model.k)*Psi(Generation.Parent.ht[i]);
   End;
-
-  Function mline(i:integer; var Generation:PGeneration):double;
-  Begin
-//     Result:=Max(Gamma*Power(Generation.Parent.bribesize-Generation.parent.wL*Model.bribetowl,Model.k)/Model.bribetowl*Power(1+Generation.Parent.ht[i],1-model.k));
-  End;
-
 
   Function hbig(i:integer; var Generation:PGeneration):double;
   var tmp:double;
@@ -1183,17 +1221,11 @@ end;
         ClearCharts(true);
 
         flag:=true;
+
         Run_pivotal:=NewStrToDouble(MainForm.IHEdit.Text,flag);
-        if not flag then
-         Run_pivotal:=-1;
-
-        flag:=true;
         Run_bribetowl:=NewStrToDouble(MainForm.BribeEdit.Text,flag);
-        if not flag then
-         Run_pivotal:=-1;
-
-        flag:=true;
         Run_examprice:=NewStrToDouble(MainForm.exampriceEdit.Text,flag);
+
         if not flag then
          Run_pivotal:=-1;
 
@@ -2159,7 +2191,7 @@ end;
 procedure TMainForm.ModelTypeChange(Sender: TObject);
 begin
   Case ModelType.ItemIndex of
-  0,2,3:
+  0,2,3,4,5:
   begin
       InitialHC.ItemIndex:=0;
       InitialHC.Buttons[2].Enabled:=false;
@@ -2184,7 +2216,7 @@ begin
   Case ModelType.ItemIndex of
     0,2:
       bribeedit.Visible:=false;
-    1,3:
+    1,3,5:
       bribeedit.Visible:=true;
   end;
 
